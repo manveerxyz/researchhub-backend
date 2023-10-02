@@ -53,6 +53,15 @@ class PredictionMarketVoteViewSet(viewsets.ModelViewSet):
         except PredictionMarket.DoesNotExist:
             return Response({"message": "Prediction market does not exist"}, status=400)
 
+        # check if user has voted before
+        if PredictionMarketVote.objects.filter(
+            created_by=user, prediction_market=prediction_market
+        ).exists():
+            return Response(
+                {"message": "User has already voted for this prediction market"},
+                status=400,
+            )
+
         # create vote
         prediction_market_vote = PredictionMarketVote.objects.create(
             created_by=user,

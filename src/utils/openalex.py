@@ -46,7 +46,7 @@ class OpenAlex:
 
     def get_data_from_source(self, source, date, page=1):
         filters = {
-            "filter": f"locations.source.id:{source},from_created_date:{date}",
+            "filter": f"locations.source.id:{source}",
             "per-page": self.per_page,
             "page": page,
         }

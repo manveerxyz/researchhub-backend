@@ -1,7 +1,7 @@
 import os
 
-NAME = os.environ.get('DB_NAME', '')
-HOST = os.environ.get('DB_HOST', '')
-PORT = os.environ.get('DB_PORT', '')
-USER = os.environ.get('DB_USER', '')
-PASS = os.environ.get('DB_PASS', '')
+NAME = "researchhub"
+HOST = "localhost"
+PORT = 5432
+USER = "rh_developer"  # replace as needed
+PASS = "not_secure"  # replace as needed
