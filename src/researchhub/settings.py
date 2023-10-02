@@ -253,6 +253,7 @@ INSTALLED_APPS = [
     "peer_review",
     "referral",
     "review",
+    "prediction_market",
 ]
 
 SITE_ID = 1
