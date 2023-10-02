@@ -54,41 +54,21 @@ class PredictionMarketVoteViewSet(viewsets.ModelViewSet):
             return Response({"message": "Prediction market does not exist"}, status=400)
 
         # check if user has voted before
-        prev_vote = PredictionMarketVote.objects.filter(
+        if PredictionMarketVote.objects.filter(
             created_by=user, prediction_market=prediction_market
-        ).first()
-
-        if prev_vote is not None:
-            # update vote
-            prev_vote.vote = vote
-            prev_vote.bet_amount = bet_amount
-            prev_vote.save()
-            prediction_market_vote = prev_vote
-        else:
-            # create vote
-            prediction_market_vote = PredictionMarketVote.objects.create(
-                created_by=user,
-                prediction_market=prediction_market,
-                vote=vote,
-                bet_amount=bet_amount,
+        ).exists():
+            return Response(
+                {"message": "User has already voted for this prediction market"},
+                status=400,
             )
 
-            # track as contribution if it's a new vote
-            create_contribution.apply_async(
-                (
-                    Contribution.REPLICATION_VOTE,
-                    {
-                        "app_label": "prediction_market",
-                        "model": "predictionmarketvote",
-                    },
-                    request.user.id,
-                    prediction_market.unified_document.id,
-                    prediction_market_vote.id,
-                ),
-                priority=1,
-                countdown=10,
-            )
-
+        # create vote
+        prediction_market_vote = PredictionMarketVote.objects.create(
+            created_by=user,
+            prediction_market=prediction_market,
+            vote=vote,
+            bet_amount=bet_amount,
+        )
         context = self._get_retrieve_context()
         data = DynamicPredictionMarketVoteSerializer(
             prediction_market_vote, context=context
