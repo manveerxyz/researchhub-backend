@@ -8,20 +8,13 @@ vote_saved = Signal()
 
 
 @receiver(vote_saved, sender=PredictionMarketVote)
-def handle_vote_saved(
-    sender, instance, created, previous_vote_value, previous_bet_amount, **kwargs
-):
+def handle_vote_saved(sender, instance, **kwargs):
     """
     Updates the votes_for/votes_against and bets_for/bets_against fields
     on the prediction market when a vote is saved.
     """
     pred_market = instance.prediction_market
-
-    if created:
-        pred_market.add_vote(instance)
-    else:
-        pred_market.update_vote(instance, previous_vote_value, previous_bet_amount)
-
+    pred_market.add_vote(instance)
     pred_market.save()
 
 

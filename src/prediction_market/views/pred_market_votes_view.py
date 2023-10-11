@@ -64,72 +64,35 @@ class PredictionMarketVoteViewSet(viewsets.ModelViewSet):
         except PredictionMarket.DoesNotExist:
             return Response({"message": "Prediction market does not exist"}, status=400)
 
-        # check if user has voted before
-        prev_vote = PredictionMarketVote.objects.filter(
-            created_by=user, prediction_market=prediction_market
-        ).first()
-        create_new_contribution = False
+        # create vote
+        prediction_market_vote = PredictionMarketVote.objects.create(
+            created_by=user,
+            prediction_market=prediction_market,
+            vote=vote,
+            bet_amount=bet_amount,
+        )
 
-        if prev_vote is not None:
-            prev_vote_value = prev_vote.vote
-            prev_bet_amount = prev_vote.bet_amount
+        # send signal to update prediction market
+        vote_saved.send(
+            sender=PredictionMarketVote,
+            instance=prediction_market_vote,
+        )
 
-            # update vote
-            prev_vote.vote = vote
-            prev_vote.bet_amount = bet_amount
-            prev_vote.save()
-            prediction_market_vote = prev_vote
-
-            # if we're changing the vote from neutral to non-neutral, track as contribution
-            if (
-                prev_vote_value == PredictionMarketVote.VOTE_NEUTRAL
-                and vote != PredictionMarketVote.VOTE_NEUTRAL
-            ):
-                create_new_contribution = True
-
-            # send signal to update prediction market
-            vote_saved.send(
-                sender=PredictionMarketVote,
-                instance=prev_vote,
-                created=False,
-                previous_vote_value=prev_vote_value,
-                previous_bet_amount=prev_bet_amount,
-            )
-        else:
-            # create vote
-            prediction_market_vote = PredictionMarketVote.objects.create(
-                created_by=user,
-                prediction_market=prediction_market,
-                vote=vote,
-                bet_amount=bet_amount,
-            )
-            create_new_contribution = True
-
-            # send signal to update prediction market
-            vote_saved.send(
-                sender=PredictionMarketVote,
-                instance=prediction_market_vote,
-                created=True,
-                previous_vote_value=None,
-                previous_bet_amount=None,
-            )
-
-        if create_new_contribution:
-            # track as contribution if it's a new non-neutral vote
-            create_contribution.apply_async(
-                (
-                    Contribution.REPLICATION_VOTE,
-                    {
-                        "app_label": "prediction_market",
-                        "model": "predictionmarketvote",
-                    },
-                    request.user.id,
-                    prediction_market.unified_document.id,
-                    prediction_market_vote.id,
-                ),
-                priority=1,
-                countdown=10,
-            )
+        # track as contribution if it's a new non-neutral vote
+        create_contribution.apply_async(
+            (
+                Contribution.REPLICATION_VOTE,
+                {
+                    "app_label": "prediction_market",
+                    "model": "predictionmarketvote",
+                },
+                request.user.id,
+                prediction_market.unified_document.id,
+                prediction_market_vote.id,
+            ),
+            priority=1,
+            countdown=10,
+        )
 
         context = self._get_retrieve_context()
         data = DynamicPredictionMarketVoteSerializer(
@@ -202,6 +165,7 @@ class PredictionMarketVoteViewSet(viewsets.ModelViewSet):
         )
 
         vote.vote = PredictionMarketVote.VOTE_NEUTRAL
+        vote.bet_amount = 0
         vote.save()
 
         # send signal to update prediction market
